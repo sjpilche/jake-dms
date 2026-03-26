@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jake
+      POSTGRES_PASSWORD: jake
+      POSTGRES_DB: jake_dms
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jake -d jake_dms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+      - "8501:8501"
+    environment:
+      DATABASE_URL: "sqlite:///./jake_dms.db"
+      POSTGRES_URL: "postgresql+asyncpg://jake:jake@postgres:5432/jake_dms"
+      DEMO_MODE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    command: >
+      bash -c "
+        uvicorn src.api.main:app --host 0.0.0.0 --port 8080 &
+        streamlit run src/demo/app.py --server.port 8501 --server.headless true
+      "
+
+volumes:
+  pgdata:
