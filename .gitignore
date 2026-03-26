@@ -21,6 +21,7 @@ ENV/
 
 # Environment
 .env
+.streamlit/secrets.toml
 
 # Database
 *.db
