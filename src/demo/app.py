@@ -5,6 +5,14 @@ Run: poetry run streamlit run src/demo/app.py
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure repo root is on sys.path (required for Streamlit Cloud)
+_root = str(Path(__file__).resolve().parent.parent.parent)
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
 import streamlit as st
 
 from src.demo.mock_data import ensure_demo_data
