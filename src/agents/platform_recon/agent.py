@@ -36,32 +36,36 @@ class PlatformReconAgent:
 
     async def run_daily(self, target_date: date | None = None) -> list[ReconResult]:
         """Execute daily reconciliation cycle."""
-        target = target_date or date.today()
-        period = target.strftime("%Y-%m")
-        logger.info(f"Running platform reconciliation for {period}")
+        try:
+            target = target_date or date.today()
+            period = target.strftime("%Y-%m")
+            logger.info(f"Running platform reconciliation for {period}")
 
-        # Step 1: Get estimated revenue from platforms
-        estimates = await self._collect_estimates(target)
+            # Step 1: Get estimated revenue from platforms
+            estimates = await self._collect_estimates(target)
 
-        # Step 2: Get actual GL deposits from Intacct
-        actuals = await self._collect_actuals(period)
+            # Step 2: Get actual GL deposits from Intacct
+            actuals = await self._collect_actuals(period)
 
-        # Step 3: Match and reconcile
-        results = self._reconcile(estimates, actuals)
+            # Step 3: Match and reconcile
+            results = self._reconcile(estimates, actuals)
 
-        # Step 4: Write stat journal for flagged items
-        flagged = [r for r in results if r.status == "Flagged"]
-        if flagged:
-            await self._write_stat_journal(flagged, period)
+            # Step 4: Write stat journal for flagged items
+            flagged = [r for r in results if r.status == "Flagged"]
+            if flagged:
+                await self._write_stat_journal(flagged, period)
 
-        # Step 5: Send Telegram summary
-        await self._send_summary(results)
+            # Step 5: Send Telegram summary
+            await self._send_summary(results)
 
-        logger.info(
-            f"Reconciliation complete: {len(results)} records, "
-            f"{len(flagged)} flagged"
-        )
-        return results
+            logger.info(
+                f"Reconciliation complete: {len(results)} records, "
+                f"{len(flagged)} flagged"
+            )
+            return results
+        except Exception as exc:
+            logger.exception(f"PlatformReconAgent.run_daily failed: {exc}")
+            return []
 
     async def _collect_estimates(self, target: date) -> list[PlatformEstimate]:
         """Pull estimated revenue from YouTube and Meta APIs."""

@@ -46,34 +46,38 @@ class CashForecastAgent:
 
     async def run_daily(self) -> list[WeeklyForecast]:
         """Generate forecast and send daily AM Telegram summary."""
-        logger.info("Running daily cash forecast")
+        try:
+            logger.info("Running daily cash forecast")
 
-        current_cash = await self._get_current_cash()
-        ar_inflows = await self._project_ar_inflows()
-        forecast = self._build_forecast(current_cash, ar_inflows)
-        alerts = self._check_alerts(forecast)
+            current_cash = await self._get_current_cash()
+            ar_inflows = await self._project_ar_inflows()
+            forecast = self._build_forecast(current_cash, ar_inflows)
+            alerts = self._check_alerts(forecast)
 
-        # Telegram: daily cash + 4-week view
-        await self.telegram.send_daily_cash_summary(
-            total_cash=float(current_cash),
-            weekly_forecast=[
-                {
-                    "week": f.week_number,
-                    "closing_cash": float(f.closing_cash),
-                    "below_minimum": f.below_minimum,
-                }
-                for f in forecast[:4]
-            ],
-        )
+            # Telegram: daily cash + 4-week view
+            await self.telegram.send_daily_cash_summary(
+                total_cash=float(current_cash),
+                weekly_forecast=[
+                    {
+                        "week": f.week_number,
+                        "closing_cash": float(f.closing_cash),
+                        "below_minimum": f.below_minimum,
+                    }
+                    for f in forecast[:4]
+                ],
+            )
 
-        if alerts:
-            for alert in alerts:
-                await self.telegram.send_message(
-                    f"⚠️ <b>Cash Alert:</b> {alert.message}"
-                )
+            if alerts:
+                for alert in alerts:
+                    await self.telegram.send_message(
+                        f"⚠️ <b>Cash Alert:</b> {alert.message}"
+                    )
 
-        logger.info(f"Forecast: 13 weeks, {len(alerts)} alerts")
-        return forecast
+            logger.info(f"Forecast: 13 weeks, {len(alerts)} alerts")
+            return forecast
+        except Exception as exc:
+            logger.exception(f"CashForecastAgent.run_daily failed: {exc}")
+            return []
 
     async def _get_current_cash(self) -> Decimal:
         """Get current total cash from Intacct."""

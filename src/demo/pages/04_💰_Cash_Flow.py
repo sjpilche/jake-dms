@@ -9,6 +9,7 @@ _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
+import io
 import random
 from datetime import timedelta
 
@@ -24,6 +25,7 @@ from src.demo.theme import (
     RED,
     TEAL,
     format_currency,
+    inject_tabular_nums,
     kpi_row,
     page_config,
     page_header,
@@ -33,7 +35,27 @@ from src.demo.theme import (
 page_config("Cash Flow | DMS CFO")
 ensure_demo_data()
 render_sidebar()
+inject_tabular_nums()
 page_header("Cash Flow Forecast", "13-Week Rolling Projection")
+
+# ---------------------------------------------------------------------------
+# Scenario Controls
+# ---------------------------------------------------------------------------
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Scenario Modeling**")
+cpm_shock = st.sidebar.slider(
+    "YouTube CPM Change", -50, 50, 0, 5, format="%d%%",
+    help="Simulate a CPM increase or decrease on platform payouts",
+)
+brand_deal_shock = st.sidebar.slider(
+    "Brand Deal Revenue Change", -50, 50, 0, 5, format="%d%%",
+    help="What if a major brand deal falls through — or a new one lands?",
+)
+headcount_change = st.sidebar.slider(
+    "Payroll Adjustment", -20, 50, 0, 5, format="%d%%",
+    help="Simulate hiring (increase) or a reduction in force",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -49,15 +71,26 @@ def load_current_cash() -> float:
 
 
 @st.cache_data(ttl=300)
-def generate_forecast(current_cash: float) -> pd.DataFrame:
+def generate_forecast(
+    current_cash: float,
+    platform_pct: int = 0,
+    brand_deal_pct: int = 0,
+    payroll_pct: int = 0,
+) -> pd.DataFrame:
     rng = random.Random(42)
 
+    platform_mult = 1 + platform_pct / 100
+    brand_mult = 1 + brand_deal_pct / 100
+    payroll_mult = 1 + payroll_pct / 100
+
     weekly_inflows = {
-        "Platform Payouts": 920_000, "Brand Deal Payments": 350_000,
+        "Platform Payouts": round(920_000 * platform_mult),
+        "Brand Deal Payments": round(350_000 * brand_mult),
         "Licensing Revenue": 180_000, "Other Income": 50_000,
     }
     weekly_outflows = {
-        "Payroll (biweekly)": 538_000, "Production Costs": 280_000,
+        "Payroll (biweekly)": round(538_000 * payroll_mult),
+        "Production Costs": 280_000,
         "Talent Payments": 165_000, "Facilities": 77_000,
         "Technology": 58_000, "Marketing": 115_000, "G&A": 96_000,
     }
@@ -118,7 +151,18 @@ def generate_forecast(current_cash: float) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 current_cash = load_current_cash()
-df = generate_forecast(current_cash)
+df = generate_forecast(current_cash, cpm_shock, brand_deal_shock, headcount_change)
+
+# Show active scenario banner
+active_scenarios = []
+if cpm_shock != 0:
+    active_scenarios.append(f"CPM {cpm_shock:+d}%")
+if brand_deal_shock != 0:
+    active_scenarios.append(f"Brand Deals {brand_deal_shock:+d}%")
+if headcount_change != 0:
+    active_scenarios.append(f"Payroll {headcount_change:+d}%")
+if active_scenarios:
+    st.info(f"**Active Scenario:** {' | '.join(active_scenarios)}")
 min_cash_threshold = df["Total Outflows"].mean() * 2
 projected_low = df["Closing Cash"].min()
 avg_burn = df["Total Outflows"].mean()
@@ -139,6 +183,33 @@ kpi_row([
     {"label": "Avg Weekly Outflow", "value": format_currency(avg_burn)},
     {"label": "Weeks of Runway", "value": f"{weeks_runway:.1f}"},
 ])
+
+# ---------------------------------------------------------------------------
+# CFO Narrative
+# ---------------------------------------------------------------------------
+
+below_min_weeks = df[df["Below Minimum"]]["Week"].tolist()
+payroll_weeks = [w for w in df.itertuples() if w.Payroll > 0]
+biggest_outflow_week = df.loc[df["Total Outflows"].idxmax()]
+
+if below_min_weeks:
+    week_list = ", ".join(str(w) for w in below_min_weeks)
+    st.warning(
+        f"**Cash Alert:** Projected cash drops below the minimum threshold in "
+        f"week(s) {week_list}. Consider accelerating AR collections or "
+        f"deferring non-critical production spend to bridge the gap."
+    )
+
+st.markdown(
+    f"> **Insight:** With **{format_currency(current_cash)}** in the bank and "
+    f"**{weeks_runway:.1f} weeks of runway**, DMS is in a solid cash position. "
+    f"Heaviest outflow week is Week {int(biggest_outflow_week['Week'])} "
+    f"({biggest_outflow_week['Week Start']}) at "
+    f"**{format_currency(biggest_outflow_week['Total Outflows'])}** — "
+    f"driven by biweekly payroll. Platform payouts from Google typically land "
+    f"around the 21st, creating a predictable mid-month dip. "
+    f"The forecast models this timing gap automatically."
+)
 
 st.markdown("---")
 
@@ -219,3 +290,12 @@ st.dataframe(
         "Closing Cash": st.column_config.NumberColumn(format="$%,.0f"),
     },
 )
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+st.markdown("---")
+csv_buf = io.StringIO()
+df.to_csv(csv_buf, index=False)
+st.download_button("Download Forecast as CSV", csv_buf.getvalue(), "dms_cash_flow.csv", "text/csv")

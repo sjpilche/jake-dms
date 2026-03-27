@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from apscheduler.events import EVENT_JOB_ERROR
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
@@ -61,15 +62,27 @@ class AgentScheduler:
         self._registered.append(name)
         logger.info(f"Scheduled monthly: {name} on day {day} at {hour:02d}:00")
 
+    def _job_error_listener(self, event) -> None:  # type: ignore[type-arg]
+        """Log failed scheduled jobs."""
+        if event.exception:
+            logger.error(
+                f"Scheduled job '{event.job_id}' failed: {event.exception}"
+            )
+
     def start(self) -> None:
-        """Start the scheduler."""
+        """Start the scheduler if not already running."""
+        if self.scheduler.running:
+            logger.warning("Scheduler already running — skipping start")
+            return
+        self.scheduler.add_listener(self._job_error_listener, EVENT_JOB_ERROR)
         self.scheduler.start()
         logger.info(f"Scheduler started with {len(self._registered)} jobs")
 
     def stop(self) -> None:
         """Shut down the scheduler."""
-        self.scheduler.shutdown()
-        logger.info("Scheduler stopped")
+        if self.scheduler.running:
+            self.scheduler.shutdown()
+            logger.info("Scheduler stopped")
 
     def get_status(self) -> list[dict]:
         """Get status of all scheduled jobs."""

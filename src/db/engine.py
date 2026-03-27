@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from loguru import logger
@@ -20,7 +22,11 @@ def get_engine() -> Engine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        _engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+        _engine = create_engine(
+            settings.DATABASE_URL,
+            echo=settings.DEBUG,
+            pool_pre_ping=True,
+        )
     return _engine
 
 
@@ -32,7 +38,22 @@ def get_session_factory() -> sessionmaker[Session]:
 
 
 def get_session() -> Session:
+    """Get a raw session. Prefer get_db() context manager for auto-cleanup."""
     return get_session_factory()()
+
+
+@contextmanager
+def get_db() -> Generator[Session, None, None]:
+    """Context-managed session with automatic commit/rollback and close."""
+    session = get_session_factory()()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def init_db() -> None:

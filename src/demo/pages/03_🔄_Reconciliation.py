@@ -9,6 +9,8 @@ _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
+import io
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -21,7 +23,9 @@ from src.demo.theme import (
     GREEN,
     RED,
     TEAL,
+    empty_state,
     format_currency,
+    inject_tabular_nums,
     kpi_row,
     page_config,
     page_header,
@@ -31,6 +35,7 @@ from src.demo.theme import (
 page_config("Reconciliation | DMS CFO")
 ensure_demo_data()
 render_sidebar()
+inject_tabular_nums()
 page_header("Platform Reconciliation", "Revenue Matching: Estimated vs. Received")
 
 
@@ -98,6 +103,28 @@ kpi_row([
     {"label": "Flagged Items", "value": str(flagged_count), "delta": f"of {len(recon_df)} total"},
 ])
 
+# ---------------------------------------------------------------------------
+# CFO Narrative
+# ---------------------------------------------------------------------------
+
+if not recon_df.empty:
+    worst_platform = recon_df.groupby("Platform")["Variance %"].apply(
+        lambda x: x.abs().mean()
+    ).idxmax()
+    worst_var = recon_df.groupby("Platform")["Variance %"].apply(
+        lambda x: x.abs().mean()
+    ).max()
+    matched_pct = ((recon_df["Status"] == "Matched").sum() / len(recon_df) * 100)
+
+    st.markdown(
+        f"> **Insight:** **{matched_pct:.0f}%** of revenue lines reconcile within 5% tolerance. "
+        f"**{worst_platform}** has the highest avg variance at **{worst_var:.1f}%** — "
+        f"likely due to payout timing differences. "
+        f"**{flagged_count} items** need manual review this period. "
+        f"Net variance of {format_currency(abs(total_variance))} is "
+        f"{'within acceptable range.' if abs(total_variance / total_estimated) < 0.05 else 'above 5% threshold — investigate immediately.'}"
+    )
+
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
@@ -128,6 +155,9 @@ with col1:
         )
         st.plotly_chart(fig, use_container_width=True)
 
+    else:
+        empty_state("No reconciliation data available for charting.")
+
 with col2:
     st.subheader("Variance by Platform")
     if not recon_df.empty:
@@ -135,10 +165,13 @@ with col2:
             {"Variance %": "mean", "Variance": "sum"}
         ).reset_index()
         colors = [GREEN if v < 5 else RED for v in plat_var["Variance %"].abs()]
+        bar_text = [
+            f"{'▲' if v > 0 else '▼'} {v:+.1f}%" for v in plat_var["Variance %"]
+        ]
         fig_var = go.Figure(data=[go.Bar(
             x=plat_var["Platform"], y=plat_var["Variance %"],
             marker_color=colors,
-            text=[f"{v:+.1f}%" for v in plat_var["Variance %"]], textposition="auto",
+            text=bar_text, textposition="auto",
         )])
         fig_var.add_hline(y=5, line_dash="dash", line_color=RED, opacity=0.5,
                           annotation_text="5% threshold")
@@ -151,6 +184,8 @@ with col2:
             yaxis={"showgrid": True, "gridcolor": "rgba(255,255,255,0.1)"},
         )
         st.plotly_chart(fig_var, use_container_width=True)
+    else:
+        empty_state("No variance data available.")
 
 # ---------------------------------------------------------------------------
 # Reconciliation Detail Table
@@ -169,6 +204,8 @@ if not recon_df.empty:
             "Variance %": st.column_config.NumberColumn(format="%+.2f%%"),
         },
     )
+else:
+    empty_state("No reconciliation records found.")
 
 # ---------------------------------------------------------------------------
 # AR Aging Detail
@@ -193,3 +230,12 @@ st.info(
     f"**AR Summary:** ${ar_df['Total'].sum():,.0f} total receivables | "
     f"${total_over_60:,.0f} over 60 days ({pct_over_60:.1f}% of total)"
 )
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+st.markdown("---")
+csv_buf = io.StringIO()
+recon_df.to_csv(csv_buf, index=False)
+st.download_button("Download Reconciliation as CSV", csv_buf.getvalue(), "dms_reconciliation.csv", "text/csv")

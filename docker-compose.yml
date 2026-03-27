@@ -23,12 +23,17 @@ services:
       - "8080:8080"
       - "8501:8501"
     environment:
-      DATABASE_URL: "sqlite:///./jake_dms.db"
-      POSTGRES_URL: "postgresql+asyncpg://jake:jake@postgres:5432/jake_dms"
-      DEMO_MODE: "true"
+      DATABASE_URL: "postgresql+asyncpg://jake:jake@postgres:5432/jake_dms"
+      DEMO_MODE: "true"  # Set to "false" for production
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     volumes:
       - ./data:/app/data
     command: >

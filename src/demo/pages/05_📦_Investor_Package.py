@@ -28,6 +28,7 @@ from src.demo.theme import (
     BIZ_LINE_COLORS,
     PLATFORM_COLORS,
     format_currency,
+    inject_tabular_nums,
     kpi_row,
     page_config,
     page_header,
@@ -38,6 +39,7 @@ from src.demo.youtube_public import YouTubePublicClient
 page_config("Investor Package | DMS CFO")
 ensure_demo_data()
 render_sidebar()
+inject_tabular_nums()
 page_header("Investor Package", "Monthly Board & Investor Metrics Summary")
 
 
@@ -104,7 +106,9 @@ def load_yt_channel() -> dict | None:
         yt = YouTubePublicClient()
         ch = yt.get_channel_stats()
         return {"subscribers": ch.subscriber_count, "views": ch.view_count, "videos": ch.video_count}
-    except Exception:
+    except Exception as exc:
+        from loguru import logger
+        logger.warning(f"YouTube channel data unavailable: {exc}")
         return None
 
 
@@ -139,6 +143,23 @@ kpi_row([
         "delta_color": "inverse" if platform_concentration > 50 else "normal",
     },
 ])
+
+# ---------------------------------------------------------------------------
+# CFO Narrative
+# ---------------------------------------------------------------------------
+
+op_income = total_revenue - total_cogs - total_opex
+annual_rev_est = total_revenue / 18 * 12
+
+st.markdown(
+    f"> **Board Summary:** DMS is on a **${annual_rev_est/1_000_000:.0f}M annualized run rate** "
+    f"with **{gross_margin:.1f}% gross** and **{op_margin:.1f}% operating margins**. "
+    f"Revenue concentration remains elevated at **{platform_concentration:.0f}%** "
+    f"(target: <40%), driven by YouTube ({yt_pct:.0f}%). "
+    f"Cash and AR total **{format_currency(total_cash + total_ar)}**. "
+    f"Key initiative for next quarter: accelerate brand deal pipeline and "
+    f"licensing revenue to reduce platform dependency."
+)
 
 st.markdown("---")
 
@@ -192,16 +213,24 @@ with col_mix:
     else:
         st.success(f"Platform concentration at {platform_concentration:.0f}% — below the 40% target.")
 
-    st.subheader("Key Ratios")
-    for label, value in {
-        "Gross Margin": f"{gross_margin:.1f}%",
-        "Operating Margin": f"{op_margin:.1f}%",
-        "Cash Position": format_currency(total_cash),
-        "Total AR": format_currency(total_ar),
-        "Revenue/Employee (est.)": format_currency(total_revenue / 18 * 12 / 200),
-        "Largest Single Source": f"YouTube ({yt_pct:.0f}%)",
-    }.items():
-        st.markdown(f"**{label}:** {value}")
+    st.subheader("Key Ratios vs. Benchmarks")
+    benchmarks = [
+        ("Gross Margin", f"{gross_margin:.1f}%", "Industry: 55-65%",
+         gross_margin >= 55),
+        ("Operating Margin", f"{op_margin:.1f}%", "Industry: 18-22%",
+         op_margin >= 18),
+        ("Cash Position", format_currency(total_cash), "Target: >2mo burn",
+         True),
+        ("Total AR", format_currency(total_ar), None, True),
+        ("Rev/Employee (est.)", format_currency(total_revenue / 18 * 12 / 200),
+         "Industry: $200-400K", True),
+        ("Platform Concentration", f"{platform_concentration:.0f}%",
+         "Target: <40%", platform_concentration < 40),
+    ]
+    for label, value, bench, ok in benchmarks:
+        indicator = "+" if ok else "!"
+        bench_text = f"  *({bench})*" if bench else ""
+        st.markdown(f"**{label}:** {value}{bench_text}")
 
 # ---------------------------------------------------------------------------
 # Revenue by Business Line Over Time
@@ -244,6 +273,34 @@ else:
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
+
+st.markdown("---")
+
+# ---------------------------------------------------------------------------
+# One-Click Board PDF
+# ---------------------------------------------------------------------------
+
+st.subheader("Generate Board Package")
+
+col_pdf, col_csv = st.columns(2)
+
+with col_pdf:
+    if st.button("Generate Executive Summary PDF", type="primary", use_container_width=True):
+        with st.spinner("Generating PDF..."):
+            from src.executive_summary import generate_executive_summary
+            pdf_path = generate_executive_summary()
+            pdf_bytes = pdf_path.read_bytes()
+            st.success(f"PDF generated ({len(pdf_bytes):,} bytes)")
+            st.download_button(
+                "Download Executive Summary PDF",
+                pdf_bytes,
+                "dms_executive_summary.pdf",
+                "application/pdf",
+                use_container_width=True,
+            )
+
+with col_csv:
+    st.markdown("")  # spacing alignment
 
 st.markdown("---")
 st.subheader("Export Data")

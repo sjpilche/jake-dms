@@ -36,36 +36,44 @@ class ContentROIAgent:
 
     async def run_weekly(self) -> list[EpisodeROI]:
         """Weekly ROI calculation + Telegram top/bottom 5."""
-        logger.info("Running weekly Content ROI analysis")
+        try:
+            logger.info("Running weekly Content ROI analysis")
 
-        episodes = await self._calculate_all_roi()
+            episodes = await self._calculate_all_roi()
 
-        # Sort by ROI
-        sorted_episodes = sorted(episodes, key=lambda e: e.roi, reverse=True)
-        top_5 = sorted_episodes[:5]
-        bottom_5 = sorted_episodes[-5:]
+            # Sort by ROI
+            sorted_episodes = sorted(episodes, key=lambda e: e.roi, reverse=True)
+            top_5 = sorted_episodes[:5]
+            bottom_5 = sorted_episodes[-5:]
 
-        # Send Telegram
-        await self.telegram.send_roi_summary(
-            top_5=[{"title": e.title, "roi": float(e.roi)} for e in top_5],
-            bottom_5=[{"title": e.title, "roi": float(e.roi)} for e in bottom_5],
-        )
+            # Send Telegram
+            await self.telegram.send_roi_summary(
+                top_5=[{"title": e.title, "roi": float(e.roi)} for e in top_5],
+                bottom_5=[{"title": e.title, "roi": float(e.roi)} for e in bottom_5],
+            )
 
-        logger.info(f"ROI analysis complete: {len(episodes)} episodes")
-        return episodes
+            logger.info(f"ROI analysis complete: {len(episodes)} episodes")
+            return episodes
+        except Exception as exc:
+            logger.exception(f"ContentROIAgent.run_weekly failed: {exc}")
+            return []
 
     async def run_monthly(self) -> list[FormatMarginReport]:
         """Monthly format-level margin analysis + push to Intacct."""
-        logger.info("Running monthly Content ROI margin analysis")
+        try:
+            logger.info("Running monthly Content ROI margin analysis")
 
-        episodes = await self._calculate_all_roi()
-        reports = self._aggregate_by_format(episodes)
+            episodes = await self._calculate_all_roi()
+            reports = self._aggregate_by_format(episodes)
 
-        # Push metrics to Intacct statistical accounts
-        await self._push_to_intacct(reports)
+            # Push metrics to Intacct statistical accounts
+            await self._push_to_intacct(reports)
 
-        logger.info(f"Format margin reports: {len(reports)} formats")
-        return reports
+            logger.info(f"Format margin reports: {len(reports)} formats")
+            return reports
+        except Exception as exc:
+            logger.exception(f"ContentROIAgent.run_monthly failed: {exc}")
+            return []
 
     async def _calculate_all_roi(self) -> list[EpisodeROI]:
         """Calculate ROI for all mapped episodes."""

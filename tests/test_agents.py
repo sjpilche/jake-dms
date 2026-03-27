@@ -224,3 +224,66 @@ class TestInvestorReportAgent:
         output = agent._generate_pdf(package)
         assert output.format == "pdf"
         assert output.size_bytes > 0
+
+
+# ---------------------------------------------------------------------------
+# Agent Resilience — verify graceful degradation on failures
+# ---------------------------------------------------------------------------
+
+class TestAgentResilience:
+    """Verify that agents survive external API failures without crashing."""
+
+    @pytest.mark.asyncio
+    async def test_cash_forecast_survives_intacct_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        agent = CashForecastAgent()
+
+        async def _boom() -> None:
+            raise ConnectionError("Intacct unreachable")
+
+        monkeypatch.setattr(agent.intacct, "get_cash_balances", _boom)
+        result = await agent.run_daily()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_platform_recon_survives_youtube_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        agent = PlatformReconAgent()
+
+        async def _boom(*args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            raise ConnectionError("YouTube API down")
+
+        monkeypatch.setattr(agent.youtube, "get_daily_metrics", _boom)
+        result = await agent.run_daily(target_date=date(2026, 3, 15))
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_content_roi_weekly_survives_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        agent = ContentROIAgent()
+
+        async def _boom() -> None:
+            raise ConnectionError("Intacct unreachable")
+
+        monkeypatch.setattr(agent.intacct, "get_project_costs", _boom)
+        result = await agent.run_weekly()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_content_roi_monthly_survives_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        agent = ContentROIAgent()
+
+        async def _boom() -> None:
+            raise ConnectionError("Intacct unreachable")
+
+        monkeypatch.setattr(agent.intacct, "get_project_costs", _boom)
+        result = await agent.run_monthly()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_concentration_survives_intacct_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        agent = ConcentrationMonitorAgent()
+
+        async def _boom(*args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            raise ConnectionError("Intacct unreachable")
+
+        monkeypatch.setattr(agent, "_get_revenue_by_source", _boom)
+        result = await agent.run_monthly()
+        assert result is None

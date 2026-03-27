@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, Integer, Numeric, String, Text
+from sqlalchemy import Date, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -17,7 +17,7 @@ class GLAccountRow(Base):
     __tablename__ = "gl_accounts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    account_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    account_no: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     subcategory: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -27,8 +27,8 @@ class GLBalanceRow(Base):
     __tablename__ = "gl_balances"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    account_no: Mapped[str] = mapped_column(String(20), nullable=False)
-    period: Mapped[str] = mapped_column(String(7), nullable=False)  # YYYY-MM
+    account_no: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    period: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
     debit: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     credit: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     net_balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
@@ -38,7 +38,7 @@ class ARAgingRow(Base):
     __tablename__ = "ar_aging"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    customer: Mapped[str] = mapped_column(String(200), nullable=False)
+    customer: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     current_amt: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     days_30: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     days_60: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
@@ -51,7 +51,7 @@ class APAgingRow(Base):
     __tablename__ = "ap_aging"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor: Mapped[str] = mapped_column(String(200), nullable=False)
+    vendor: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     current_amt: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     days_30: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     days_60: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
@@ -74,7 +74,7 @@ class ProductionCostRow(Base):
     __tablename__ = "production_costs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    video_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    video_id: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     video_title: Mapped[str] = mapped_column(Text, nullable=False)
     content_format: Mapped[str] = mapped_column(String(20), nullable=False)
     crew_id: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -89,11 +89,14 @@ class ProductionCostRow(Base):
 
 class PlatformRevenueRow(Base):
     __tablename__ = "platform_revenue"
+    __table_args__ = (
+        Index("ix_platform_revenue_plat_period", "platform", "period"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform: Mapped[str] = mapped_column(String(30), nullable=False)
+    platform: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     business_line: Mapped[str] = mapped_column(String(50), nullable=False)
-    period: Mapped[str] = mapped_column(String(7), nullable=False)  # YYYY-MM
+    period: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
     ad_revenue: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     sponsorship_revenue: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     licensing_revenue: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
@@ -102,21 +105,27 @@ class PlatformRevenueRow(Base):
 
 class PLRow(Base):
     __tablename__ = "pl_items"
+    __table_args__ = (
+        Index("ix_pl_items_cat_period", "category", "period"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     subcategory: Mapped[str] = mapped_column(String(100), nullable=False)
-    business_line: Mapped[str] = mapped_column(String(50), nullable=False)
-    period: Mapped[str] = mapped_column(String(7), nullable=False)  # YYYY-MM
+    business_line: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    period: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # YYYY-MM
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
 
 
 class ReconRecordRow(Base):
     __tablename__ = "recon_records"
+    __table_args__ = (
+        Index("ix_recon_records_plat_period", "platform", "period"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    platform: Mapped[str] = mapped_column(String(30), nullable=False)
-    period: Mapped[str] = mapped_column(String(7), nullable=False)
+    platform: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    period: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
     estimated_revenue: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     actual_received: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     variance: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)

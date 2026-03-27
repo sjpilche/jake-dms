@@ -57,12 +57,30 @@ class Settings(BaseSettings):
     # -- FastAPI ---------------------------------------------------------------
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8080
+    API_KEY: str = ""
+    CORS_ORIGINS: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
+
+
+    def validate_for_production(self) -> list[str]:
+        """Return warnings for missing production config. Called at API startup."""
+        warnings: list[str] = []
+        if self.DEMO_MODE:
+            warnings.append("DEMO_MODE is enabled — using mock data")
+        if not self.API_KEY:
+            warnings.append("API_KEY not set — endpoints are unprotected")
+        if not self.TELEGRAM_BOT_TOKEN:
+            warnings.append("TELEGRAM_BOT_TOKEN not set — notifications disabled")
+        if "sqlite" in self.DATABASE_URL:
+            warnings.append("DATABASE_URL is SQLite — not suitable for production")
+        if self.INTACCT_MOCK_MODE:
+            warnings.append("INTACCT_MOCK_MODE is enabled — using mock Intacct data")
+        return warnings
 
 
 @lru_cache(maxsize=1)

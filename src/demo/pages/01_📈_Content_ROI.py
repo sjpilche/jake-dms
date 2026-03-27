@@ -1,4 +1,4 @@
-"""Page 2: Content ROI — Episode-level profitability analysis."""
+"""Page 1: Content ROI — Episode-level profitability analysis."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ _root = str(Path(__file__).resolve().parent.parent.parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
+import io
 import random
 
 import pandas as pd
@@ -23,6 +24,7 @@ from src.demo.theme import (
     CHART_COLORS,
     TEAL,
     format_currency,
+    inject_tabular_nums,
     kpi_row,
     page_config,
     page_header,
@@ -33,6 +35,7 @@ from src.demo.youtube_public import YouTubePublicClient
 page_config("Content ROI | DMS CFO")
 ensure_demo_data()
 render_sidebar()
+inject_tabular_nums()
 page_header("Content ROI", "Episode-Level Profitability Analysis")
 
 
@@ -64,7 +67,9 @@ def load_youtube_videos() -> list[dict]:
             {"video_id": v.video_id, "title": v.title, "view_count": v.view_count}
             for v in videos
         ]
-    except Exception:
+    except Exception as exc:
+        from loguru import logger
+        logger.warning(f"Failed to load YouTube videos: {exc}")
         return []
 
 
@@ -119,6 +124,24 @@ kpi_row([
     {"label": "Videos Analyzed", "value": str(len(df))},
 ])
 
+# ---------------------------------------------------------------------------
+# CFO Narrative
+# ---------------------------------------------------------------------------
+
+best_format = df.groupby("Format")["ROI %"].mean().idxmax()
+best_roi = df.groupby("Format")["ROI %"].mean().max()
+worst_format = df.groupby("Format")["ROI %"].mean().idxmin()
+worst_roi = df.groupby("Format")["ROI %"].mean().min()
+profitable_pct = (df["ROI %"] > 0).sum() / len(df) * 100
+
+st.markdown(
+    f"> **Insight:** **{profitable_pct:.0f}%** of episodes are profitable at ${cpm:.2f} CPM. "
+    f"**{best_format}** content delivers the best ROI at **{best_roi:.0f}%** avg, "
+    f"while **{worst_format}** averages **{worst_roi:.0f}%**. "
+    f"Recommendation: shift production budget toward {best_format} formats "
+    f"and tighten cost controls on {worst_format} productions."
+)
+
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
@@ -134,11 +157,19 @@ with col1:
         color="Format", hover_name="Title",
         color_discrete_sequence=CHART_COLORS, size_max=40,
     )
+    # Break-even line
     fig_scatter.add_shape(
         type="line", x0=0, y0=0,
         x1=df["Production Cost"].max() * 1.1,
         y1=df["Production Cost"].max() * 1.1,
         line={"color": "rgba(255,255,255,0.3)", "dash": "dash"},
+    )
+    fig_scatter.add_annotation(
+        x=df["Production Cost"].max() * 0.9,
+        y=df["Production Cost"].max() * 0.9,
+        text="Break-even line",
+        showarrow=False,
+        font={"color": "rgba(255,255,255,0.4)", "size": 11},
     )
     fig_scatter.update_layout(
         height=450, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -149,6 +180,7 @@ with col1:
         yaxis={"showgrid": True, "gridcolor": "rgba(255,255,255,0.1)"},
     )
     st.plotly_chart(fig_scatter, use_container_width=True)
+    st.caption(f"*Above the line = profitable. Industry CPM range: $2-8 (currently ${cpm:.2f})*")
 
 with col2:
     st.subheader("Avg Cost/1K Views by Format")
@@ -208,3 +240,12 @@ st.dataframe(
         "Cost/1K Views": st.column_config.NumberColumn(format="$%.2f"),
     },
 )
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+st.markdown("---")
+csv_buf = io.StringIO()
+df.to_csv(csv_buf, index=False)
+st.download_button("Download ROI Table as CSV", csv_buf.getvalue(), "dms_content_roi.csv", "text/csv")

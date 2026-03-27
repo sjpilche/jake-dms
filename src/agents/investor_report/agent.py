@@ -33,27 +33,31 @@ class InvestorReportAgent:
 
     async def generate(self, period: str | None = None) -> InvestorPackage:
         """Generate the full investor package for a given period."""
-        target_period = period or date.today().strftime("%Y-%m")
-        logger.info(f"Generating investor package for {target_period}")
+        try:
+            target_period = period or date.today().strftime("%Y-%m")
+            logger.info(f"Generating investor package for {target_period}")
 
-        package = await self._build_package(target_period)
+            package = await self._build_package(target_period)
 
-        # Generate outputs
-        outputs = []
-        outputs.append(self._generate_excel(package))
-        outputs.append(self._generate_pdf(package))
+            # Generate outputs
+            outputs = []
+            outputs.append(self._generate_excel(package))
+            outputs.append(self._generate_pdf(package))
 
-        # Notify via Telegram
-        await self.telegram.send_message(
-            f"<b>📋 Investor Package Ready</b>\n"
-            f"Period: {target_period}\n"
-            f"Revenue: ${float(package.total_revenue):,.0f}\n"
-            f"Operating Margin: {float(package.operating_margin_pct):.1f}%\n"
-            f"Files generated: {len(outputs)}"
-        )
+            # Notify via Telegram
+            await self.telegram.send_message(
+                f"<b>📋 Investor Package Ready</b>\n"
+                f"Period: {target_period}\n"
+                f"Revenue: ${float(package.total_revenue):,.0f}\n"
+                f"Operating Margin: {float(package.operating_margin_pct):.1f}%\n"
+                f"Files generated: {len(outputs)}"
+            )
 
-        logger.info(f"Investor package generated: {len(outputs)} files")
-        return package
+            logger.info(f"Investor package generated: {len(outputs)} files")
+            return package
+        except Exception as exc:
+            logger.exception(f"InvestorReportAgent.generate failed: {exc}")
+            raise
 
     async def _build_package(self, period: str) -> InvestorPackage:
         """Assemble all data for the investor package."""

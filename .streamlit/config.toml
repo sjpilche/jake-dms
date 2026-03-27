@@ -7,3 +7,10 @@ font = "sans serif"
 
 [server]
 headless = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = false

@@ -29,29 +29,33 @@ class ConcentrationMonitorAgent:
         self.intacct = IntacctClient()
         self.telegram = TelegramNotifier()
 
-    async def run_monthly(self, period: str = "YTD") -> ConcentrationMetrics:
+    async def run_monthly(self, period: str = "YTD") -> ConcentrationMetrics | None:
         """Calculate concentration metrics and send alerts."""
-        logger.info(f"Running concentration analysis for {period}")
+        try:
+            logger.info(f"Running concentration analysis for {period}")
 
-        revenue_by_source = await self._get_revenue_by_source()
-        metrics = self._calculate_metrics(revenue_by_source, period)
-        alerts = self._evaluate_alerts(metrics)
+            revenue_by_source = await self._get_revenue_by_source()
+            metrics = self._calculate_metrics(revenue_by_source, period)
+            alerts = self._evaluate_alerts(metrics)
 
-        # Send Telegram alerts
-        for alert in alerts:
-            if alert.level in ("RED", "YELLOW"):
-                await self.telegram.send_concentration_alert(
-                    platform_pct=float(metrics.platform_revenue_pct),
-                    largest_source=metrics.largest_source,
-                    largest_pct=float(metrics.largest_source_pct),
-                )
-                break  # One summary alert is enough
+            # Send Telegram alerts
+            for alert in alerts:
+                if alert.level in ("RED", "YELLOW"):
+                    await self.telegram.send_concentration_alert(
+                        platform_pct=float(metrics.platform_revenue_pct),
+                        largest_source=metrics.largest_source,
+                        largest_pct=float(metrics.largest_source_pct),
+                    )
+                    break  # One summary alert is enough
 
-        logger.info(
-            f"Concentration: platform={metrics.platform_revenue_pct:.1f}%, "
-            f"HHI={metrics.herfindahl_index:.0f}, alert={metrics.alert_level}"
-        )
-        return metrics
+            logger.info(
+                f"Concentration: platform={metrics.platform_revenue_pct:.1f}%, "
+                f"HHI={metrics.herfindahl_index:.0f}, alert={metrics.alert_level}"
+            )
+            return metrics
+        except Exception as exc:
+            logger.exception(f"ConcentrationMonitorAgent.run_monthly failed: {exc}")
+            return None
 
     async def _get_revenue_by_source(self) -> dict[str, Decimal]:
         """Get revenue breakdown by source from Intacct."""
