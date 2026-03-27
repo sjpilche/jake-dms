@@ -237,6 +237,101 @@ def inject_tabular_nums() -> None:
         hr {{
             border-color: rgba(255,255,255,0.06) !important;
         }}
+
+        /* ============================================================
+           RESPONSIVE — tablet & mobile
+           ============================================================ */
+
+        /* Tablet (<1024px) */
+        @media (max-width: 1024px) {{
+            /* Shrink metric cards */
+            [data-testid="stMetricValue"] {{
+                font-size: 1.2rem !important;
+            }}
+            [data-testid="stMetricLabel"] {{
+                font-size: 0.75rem !important;
+            }}
+
+            /* Make dataframes scroll horizontally instead of overflowing */
+            [data-testid="stDataFrame"] {{
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }}
+
+            /* Tighten chart margins */
+            .js-plotly-plot {{
+                max-width: 100% !important;
+            }}
+        }}
+
+        /* Mobile (<768px) */
+        @media (max-width: 768px) {{
+            /* Boost base text to avoid iOS auto-zoom */
+            html, body, [class*="css"] {{
+                font-size: 16px !important;
+            }}
+
+            /* Stack metric cards vertically with less padding */
+            [data-testid="stMetric"] {{
+                padding: 8px 12px;
+                margin-bottom: 4px;
+            }}
+            [data-testid="stMetricValue"] {{
+                font-size: 1.1rem !important;
+            }}
+
+            /* Reduce blockquote insight padding */
+            blockquote {{
+                padding: 8px 12px;
+            }}
+            blockquote p {{
+                font-size: 13px;
+            }}
+
+            /* Full-width columns — override Streamlit's column gaps */
+            [data-testid="column"] {{
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                min-width: 0 !important;
+            }}
+
+            /* Constrain chart height on small screens */
+            .js-plotly-plot .plot-container {{
+                max-height: 300px;
+            }}
+
+            /* Subheader — smaller on mobile */
+            h3 {{
+                font-size: 1rem !important;
+                padding-left: 8px;
+            }}
+
+            /* Hide hover effects on touch (no hover state) */
+            [data-testid="stMetric"]:hover {{
+                transform: none;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }}
+
+            /* Download buttons — full width */
+            [data-testid="stDownloadButton"] button {{
+                width: 100% !important;
+            }}
+        }}
+
+        /* Small phone (<480px) */
+        @media (max-width: 480px) {{
+            [data-testid="stMetricValue"] {{
+                font-size: 1rem !important;
+            }}
+            [data-testid="stMetricLabel"] {{
+                font-size: 0.7rem !important;
+            }}
+
+            /* Agent pulse sidebar — smaller text */
+            [data-testid="stSidebar"] p {{
+                font-size: 12px !important;
+            }}
+        }}
         </style>
         """,
         unsafe_allow_html=True,

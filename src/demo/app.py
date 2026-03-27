@@ -143,19 +143,19 @@ with col_left:
                margin-bottom: 12px;">
                 What This System Replaces
             </p>
-            <p style="color: {RED}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {RED}; font-size: 14px; margin: 4px 0;">
                 Manual spreadsheet reconciliation (hours/week)
             </p>
-            <p style="color: {RED}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {RED}; font-size: 14px; margin: 4px 0;">
                 Guesswork on which content formats are profitable
             </p>
-            <p style="color: {RED}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {RED}; font-size: 14px; margin: 4px 0;">
                 Reactive cash management (checking balances ad hoc)
             </p>
-            <p style="color: {RED}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {RED}; font-size: 14px; margin: 4px 0;">
                 Multi-day monthly close cycles
             </p>
-            <p style="color: {RED}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {RED}; font-size: 14px; margin: 4px 0;">
                 Board decks assembled manually every month
             </p>
         </div>
@@ -171,19 +171,19 @@ with col_right:
                margin-bottom: 12px;">
                 What You Get on Day 1
             </p>
-            <p style="color: {GREEN}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {GREEN}; font-size: 14px; margin: 4px 0;">
                 Daily automated platform revenue reconciliation
             </p>
-            <p style="color: {GREEN}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {GREEN}; font-size: 14px; margin: 4px 0;">
                 Episode-level ROI with real YouTube view data
             </p>
-            <p style="color: {GREEN}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {GREEN}; font-size: 14px; margin: 4px 0;">
                 13-week rolling cash forecast, updated every morning
             </p>
-            <p style="color: {GREEN}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {GREEN}; font-size: 14px; margin: 4px 0;">
                 Monthly close in hours, not days
             </p>
-            <p style="color: {GREEN}; font-size: 13px; margin: 4px 0;">
+            <p style="color: {GREEN}; font-size: 14px; margin: 4px 0;">
                 One-click investor packages (PDF + Excel)
             </p>
         </div>
